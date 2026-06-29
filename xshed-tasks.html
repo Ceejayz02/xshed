@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>XShed — Maintenance Task Board</title>
+<style>
+  :root {
+    --red: #cc0000;
+    --dark: #2b2b2a;
+    --bg: #f0f0ef;
+    --surface: #ffffff;
+    --surface2: #f7f7f6;
+    --border: #e0e0de;
+    --text: #1a1a18;
+    --muted: #888884;
+    --accent-blue-bg: #e8f0fb; --accent-blue-fg: #1a4fa0;
+    --accent-purple-bg: #eeebfd; --accent-purple-fg: #4a35b0;
+    --accent-green-bg: #e6f5eb; --accent-green-fg: #1a6b35;
+    --accent-amber-bg: #fef3e2; --accent-amber-fg: #8a5500;
+    --accent-red-bg: #fdeaea; --accent-red-fg: #991f1f;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  header { background: var(--dark); color: #fff; padding: 20px 28px; display: flex; align-items: center; gap: 16px; }
+  .logo { background: var(--red); color: #fff; font-size: 18px; font-weight: 900; padding: 6px 12px; border-radius: 5px; letter-spacing: 1px; }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header p { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .topbar input, .topbar select { font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); padding: 0 10px; height: 34px; background: var(--surface); color: var(--text); outline: none; }
+  .topbar input { flex: 1; min-width: 180px; }
+  .topbar input:focus, .topbar select:focus { border-color: var(--red); }
+  .topbar select { width: auto; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--radius); padding: 0 14px; height: 34px; background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: #aaa; background: var(--surface2); }
+  .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-red:hover { background: #aa0000; border-color: #aa0000; }
+  .btn-danger { background: var(--accent-red-bg); color: var(--accent-red-fg); border-color: #f0a0a0; }
+  .btn-danger:hover { background: #fad5d5; }
+  .btn-export { background: var(--accent-green-bg); color: var(--accent-green-fg); border-color: #a0d0b0; }
+  .btn-export:hover { background: #d0edda; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat .n { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat .l { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+  @media(max-width: 700px) { .cols { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2,1fr); } }
+
+  .col { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .col-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .col-count { font-size: 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1px 8px; }
+  .col-body { display: flex; flex-direction: column; gap: 8px; min-height: 80px; }
+
+  .task { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+  .task:hover { border-color: #bbb; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .task.is-done { opacity: 0.55; }
+  .task-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
+  .task-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; line-height: 1.4; }
+  .task-title.crossed { text-decoration: line-through; color: var(--muted); }
+  .task-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .tag-backend  { background: var(--accent-blue-bg);   color: var(--accent-blue-fg); }
+  .tag-frontend { background: var(--accent-purple-bg); color: var(--accent-purple-fg); }
+  .tag-db       { background: var(--accent-green-bg);  color: var(--accent-green-fg); }
+  .tag-config   { background: var(--accent-amber-bg);  color: var(--accent-amber-fg); }
+  .tag-bug      { background: var(--accent-red-bg);    color: var(--accent-red-fg); }
+  .prio { font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .prio-high   { color: var(--accent-red-fg); }
+  .prio-medium { color: var(--accent-amber-fg); }
+  .prio-low    { color: var(--accent-green-fg); }
+  .task-file { font-size: 11px; color: var(--muted); font-family: 'Consolas', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+
+  .add-btn { width: 100%; background: transparent; border: 1px dashed var(--border); border-radius: var(--radius); padding: 8px; font-size: 12px; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+  .add-btn:hover { background: var(--surface); color: var(--text); border-color: #aaa; border-style: solid; }
+
+  .empty { text-align: center; padding: 20px 8px; color: var(--muted); font-size: 12px; }
+
+  /* Modal */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 22px 24px; width: 400px; max-width: 96vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .modal label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .modal input, .modal select, .modal textarea { width: 100%; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); padding: 0 10px; height: 34px; background: var(--surface2); color: var(--text); outline: none; }
+  .modal input:focus, .modal select:focus { border-color: var(--red); }
+  .modal textarea { height: 60px; padding: 8px 10px; resize: vertical; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+
+  /* Import/export banner */
+  .io-bar { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .io-bar span { flex: 1; }
+
+  footer { text-align: center; font-size: 11px; color: var(--muted); padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">XShed</div>
+  <div>
+    <h1>Maintenance Feature — Task Board</h1>
+    <p>Standalone · shareable · editable by anyone · export/import via JSON</p>
+  </div>
+</header>
+
+<main>
+  <div class="io-bar">
+    <span>💡 Changes are saved in your browser. Use <strong>Export JSON</strong> to share your version with teammates, and <strong>Import JSON</strong> to load theirs.</span>
+    <button class="btn btn-export" onclick="exportJSON()">⬇ Export JSON</button>
+    <label class="btn" style="cursor:pointer;">⬆ Import JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+    <button class="btn btn-danger" onclick="resetTasks()">↺ Reset defaults</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="topbar">
+    <input type="text" id="search" placeholder="Search tasks or filenames…" oninput="render()">
+    <select id="filter-tag" onchange="render()">
+      <option value="">All tags</option>
+      <option>backend</option><option>frontend</option><option>db</option><option>config</option><option>bug</option>
+    </select>
+    <select id="filter-prio" onchange="render()">
+      <option value="">All priorities</option>
+      <option>high</option><option>medium</option><option>low</option>
+    </select>
+    <button class="btn btn-red" onclick="openModal()">+ Add task</button>
+  </div>
+
+  <div class="cols" id="board"></div>
+</main>
+
+<footer>XShed Maintenance Feature &nbsp;·&nbsp; Task Board &nbsp;·&nbsp; Export your changes as JSON to share with teammates</footer>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h3 id="modal-title">New task</h3>
+    <label>Title</label>
+    <input type="text" id="t-title" placeholder="e.g. Implement MaintenanceInfoDao">
+    <label>File / reference</label>
+    <input type="text" id="t-file" placeholder="e.g. MaintenanceInfoDao.java">
+    <label>Notes</label>
+    <textarea id="t-notes" placeholder="Optional notes or context…"></textarea>
+    <label>Tag</label>
+    <select id="t-tag">
+      <option>backend</option><option>frontend</option><option>db</option><option>config</option><option>bug</option>
+    </select>
+    <label>Priority</label>
+    <select id="t-prio"><option>high</option><option>medium</option><option>low</option></select>
+    <label>Status</label>
+    <select id="t-status"><option>todo</option><option>in-progress</option><option>done</option></select>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="del-btn" style="display:none;margin-right:auto;" onclick="deleteTask()">Delete</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-red" onclick="saveTask()">Save task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'xshed-tasks-v1';
+const DEFAULTS = [
+  { id:1,  title:"Create Maintenance.java entity + hbm.xml",                        file:"Maintenance.java",                                          tag:"backend",  prio:"high",   status:"done",        notes:"" },
+  { id:2,  title:"Create MaintenanceServices + MaintenanceType lookup entities",     file:"MaintenanceServices.java / MaintenanceType.java",            tag:"backend",  prio:"high",   status:"done",        notes:"" },
+  { id:3,  title:"Create MaintenanceServiceTypeFee fee-matrix entity",               file:"MaintenanceServiceTypeFee.java",                             tag:"backend",  prio:"high",   status:"done",        notes:"" },
+  { id:4,  title:"Create MaintenancePaymentTransaction junction entity",             file:"MaintenancePaymentTransaction.java",                         tag:"backend",  prio:"high",   status:"done",        notes:"" },
+  { id:5,  title:"Create MaintenanceInfoDao interface + Hibernate impl",             file:"MaintenanceInfoDao.java / HibernateMaintenanceInfoDaoImpl.java", tag:"backend", prio:"high", status:"done",      notes:"" },
+  { id:6,  title:"Create DTOs for all 5 maintenance entities",                       file:"MaintenanceBean.java (x5 beans)",                            tag:"backend",  prio:"medium", status:"done",        notes:"" },
+  { id:7,  title:"Add 5 HBM mappings to applicationContext.xml",                    file:"applicationContext.xml",                                    tag:"config",   prio:"high",   status:"done",        notes:"" },
+  { id:8,  title:"Wire maintenanceInfoDao Spring bean + inject into 5 action beans", file:"applicationContext.xml",                                   tag:"config",   prio:"high",   status:"in-progress", notes:"" },
+  { id:9,  title:"Add struts-config action mappings (getMaintenance / manageMaintenance)", file:"struts-config.xml",                                  tag:"config",   prio:"medium", status:"in-progress", notes:"" },
+  { id:10, title:"Implement GetMaintenanceAction AJAX (history, latestextracleaning, servicefee)", file:"GetMaintenanceAction.java",                   tag:"backend",  prio:"high",   status:"in-progress", notes:"" },
+  { id:11, title:"Implement ManageMaintenanceAction (add / donecleaning / cancel)",  file:"ManageMaintenanceAction.java",                              tag:"backend",  prio:"high",   status:"in-progress", notes:"" },
+  { id:12, title:"Add 5 maintenance fields to PaymentTransactionFormBean",           file:"PaymentTransactionFormBean.java",                           tag:"backend",  prio:"medium", status:"todo",        notes:"" },
+  { id:13, title:"Inject maintenanceInfoDao into HttpCustomerAJAXRemoteRequestProcessorAction + add 4 AJAX actions", file:"HttpCustomerAJAXRemoteRequestProcessorAction.java", tag:"backend", prio:"high", status:"todo", notes:"" },
+  { id:14, title:"isMaintenance billing override in admin AJAX action",              file:"HttpAdminAJAXRemoteRequestProcessorAction.java",             tag:"backend",  prio:"medium", status:"todo",        notes:"" },
+  { id:15, title:"hasunpaidextracleaning flag in delivery AJAX action",              file:"HttpDeliveryCompanyAJAXRemoteRequestProcessorAction.java",   tag:"backend",  prio:"medium", status:"todo",        notes:"" },
+  { id:16, title:"Add maintenance modals + JS to customer modals.jsp",               file:"jsp/customer/common/modals.jsp",                            tag:"frontend", prio:"medium", status:"todo",        notes:"" },
+  { id:17, title:"Add maintenance modals + JS to delivery modals.jsp",               file:"jsp/delivery/common/modals.jsp",                            tag:"frontend", prio:"medium", status:"todo",        notes:"" },
+  { id:18, title:"Add Maintenance + Schedule buttons to show-orders.js (orderStatusId == 7)", file:"js/customer/show-orders.js",                      tag:"frontend", prio:"medium", status:"todo",        notes:"" },
+  { id:19, title:"isMaintenance check in customer billsPayments_v1.js",              file:"js/customer/billsPayments_v1.js",                           tag:"frontend", prio:"low",    status:"todo",        notes:"" },
+  { id:20, title:"isMaintenance check in admin billsPayments_v1.js",                 file:"js/admin/billsPayments_v1.js",                              tag:"frontend", prio:"low",    status:"todo",        notes:"" },
+  { id:21, title:"Full maintenance history flow in orderDeliveryPickupHistory.js",   file:"js/delivery/orderDeliveryPickupHistory.js",                 tag:"frontend", prio:"high",   status:"todo",        notes:"" },
+  { id:22, title:"Customer CSS — maintenance section styles",                        file:"css/customer/style.css",                                   tag:"frontend", prio:"low",    status:"todo",        notes:"" },
+  { id:23, title:"Delivery CSS — maintenance section styles",                        file:"css/style.css",                                            tag:"frontend", prio:"low",    status:"todo",        notes:"" },
+  { id:24, title:"Run maintenance_request.sql + verify seed data",                   file:"SQLS/maintenance_request.sql",                             tag:"db",       prio:"high",   status:"done",        notes:"5 tables + fee matrix seed data" },
+];
+
+const COLS = [
+  { key:"todo",        label:"To do" },
+  { key:"in-progress", label:"In progress" },
+  { key:"done",        label:"Done" },
+];
+
+let tasks = [];
+let editId = null;
+let nextId = 200;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { const d = JSON.parse(raw); tasks = d.tasks; nextId = d.nextId || 200; }
+    else { tasks = DEFAULTS.map(t=>({...t})); save(); }
+  } catch(e) { tasks = DEFAULTS.map(t=>({...t})); }
+  render();
+}
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, nextId })); } catch(e) {}
+}
+
+function resetTasks() {
+  if (!confirm('Reset to default tasks? Your changes will be lost.')) return;
+  tasks = DEFAULTS.map(t=>({...t})); nextId = 200; save(); render();
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({ tasks, nextId, exported: new Date().toISOString() }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'xshed-tasks-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d.tasks) { alert('Invalid file — missing tasks array.'); return; }
+      if (!confirm('Replace current tasks with imported data?')) return;
+      tasks = d.tasks; nextId = d.nextId || 200; save(); render();
+    } catch(err) { alert('Could not read file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function filtered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const tag = document.getElementById('filter-tag').value;
+  const prio = document.getElementById('filter-prio').value;
+  return tasks.filter(t =>
+    (!q || t.title.toLowerCase().includes(q) || (t.file||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
+    (!tag || t.tag === tag) &&
+    (!prio || t.prio === prio)
+  );
+}
+
+function prioLabel(p) {
+  const map = { high:'↑ High', medium:'– Med', low:'↓ Low' };
+  return `<span class="prio prio-${p}">${map[p]||p}</span>`;
+}
+
+function render() {
+  const f = filtered();
+  document.getElementById('board').innerHTML = COLS.map(col => {
+    const items = f.filter(t => t.status === col.key);
+    return `<div class="col">
+      <div class="col-header">
+        <span class="col-title">${col.label}</span>
+        <span class="col-count">${items.length}</span>
+      </div>
+      <div class="col-body">
+        ${items.length===0 ? '<div class="empty">No tasks</div>' : ''}
+        ${items.map(t=>`
+          <div class="task${t.status==='done'?' is-done':''}" onclick="openEdit(${t.id})">
+            <div class="task-top">
+              <span class="task-title${t.status==='done'?' crossed':''}">${t.title}</span>
+              ${prioLabel(t.prio)}
+            </div>
+            <div class="task-meta">
+              <span class="tag tag-${t.tag}">${t.tag}</span>
+              ${t.file?`<span class="task-file" title="${t.file}">${t.file}</span>`:''}
+            </div>
+            ${t.notes?`<div style="font-size:11px;color:#888;margin-top:6px;line-height:1.4;">${t.notes}</div>`:''}
+          </div>`).join('')}
+        <button class="add-btn" onclick="openModal('${col.key}')">+ Add task</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${tasks.length}</div><div class="l">Total</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='todo').length}</div><div class="l">To do</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='in-progress').length}</div><div class="l">In progress</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='done').length}</div><div class="l">Done</div></div>
+  `;
+}
+
+function openModal(status='todo') {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'New task';
+  document.getElementById('t-title').value = '';
+  document.getElementById('t-file').value = '';
+  document.getElementById('t-notes').value = '';
+  document.getElementById('t-tag').value = 'backend';
+  document.getElementById('t-prio').value = 'medium';
+  document.getElementById('t-status').value = status;
+  document.getElementById('del-btn').style.display = 'none';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('t-title').focus(), 50);
+}
+
+function openEdit(id) {
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  editId = id;
+  document.getElementById('modal-title').textContent = 'Edit task';
+  document.getElementById('t-title').value = t.title;
+  document.getElementById('t-file').value = t.file||'';
+  document.getElementById('t-notes').value = t.notes||'';
+  document.getElementById('t-tag').value = t.tag;
+  document.getElementById('t-prio').value = t.prio;
+  document.getElementById('t-status').value = t.status;
+  document.getElementById('del-btn').style.display = '';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target===document.getElementById('overlay')) closeModal(); }
+
+function saveTask() {
+  const title = document.getElementById('t-title').value.trim();
+  if (!title) { document.getElementById('t-title').focus(); return; }
+  const data = { title, file: document.getElementById('t-file').value.trim(), notes: document.getElementById('t-notes').value.trim(), tag: document.getElementById('t-tag').value, prio: document.getElementById('t-prio').value, status: document.getElementById('t-status').value };
+  if (editId) { const i = tasks.findIndex(t=>t.id===editId); tasks[i] = {...tasks[i],...data}; }
+  else { tasks.push({ id: nextId++, ...data }); }
+  closeModal(); save(); render();
+}
+
+function deleteTask() {
+  if (!editId || !confirm('Delete this task?')) return;
+  tasks = tasks.filter(t=>t.id!==editId);
+  closeModal(); save(); render();
+}
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+load();
+</script>
+</body>
+</html>
