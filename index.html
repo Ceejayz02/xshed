@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>XShed — Maintenance Task Board</title>
+<style>
+  :root {
+    --red: #cc0000; --dark: #2b2b2a; --bg: #f0f0ef;
+    --surface: #ffffff; --surface2: #f7f7f6; --border: #e0e0de;
+    --text: #1a1a18; --muted: #888884; --radius: 8px;
+    --blue-bg:#e8f0fb; --blue-fg:#1a4fa0;
+    --purple-bg:#eeebfd; --purple-fg:#4a35b0;
+    --green-bg:#e6f5eb; --green-fg:#1a6b35;
+    --amber-bg:#fef3e2; --amber-fg:#8a5500;
+    --red-bg:#fdeaea; --red-fg:#991f1f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  header{background:var(--dark);color:#fff;padding:18px 28px;display:flex;align-items:center;gap:14px}
+  .logo{background:var(--red);color:#fff;font-size:18px;font-weight:900;padding:6px 12px;border-radius:5px;letter-spacing:1px}
+  header h1{font-size:16px;font-weight:600}
+  header p{font-size:11px;color:#aaa;margin-top:2px}
+  .live-badge{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa}
+  .dot{width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s}
+  .dot.on{background:#27ae60}.dot.sync{background:#f39c12}
+  main{max-width:1280px;margin:0 auto;padding:20px 20px 60px}
+  .topbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .topbar input,.topbar select{font-size:13px;border:1px solid var(--border);border-radius:var(--radius);padding:0 10px;height:34px;background:var(--surface);color:var(--text);outline:none}
+  .topbar input{flex:1;min-width:160px}
+  .topbar input:focus,.topbar select:focus{border-color:var(--red)}
+  .btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:var(--radius);padding:0 13px;height:34px;background:var(--surface);color:var(--text);font-size:13px;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:#aaa;background:var(--surface2)}
+  .btn-red{background:var(--red);color:#fff;border-color:var(--red)}.btn-red:hover{background:#aa0000}
+  .btn-danger{background:var(--red-bg);color:var(--red-fg);border-color:#f0a0a0}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .stat .n{font-size:24px;font-weight:700;line-height:1}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
+  .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  @media(max-width:700px){.cols{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+  .col{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .col-title{font-size:13px;font-weight:600}
+  .col-count{font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1px 8px}
+  .col-body{display:flex;flex-direction:column;gap:8px;min-height:80px}
+  .task{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+  .task:hover{border-color:#bbb;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+  .task.done{opacity:.55}
+  .task-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
+  .task-title{font-size:13px;font-weight:500;flex:1;line-height:1.4}
+  .task-title.x{text-decoration:line-through;color:var(--muted)}
+  .task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .tag{font-size:10px;font-weight:600;border-radius:4px;padding:2px 6px;text-transform:uppercase;letter-spacing:.3px}
+  .tag-backend{background:var(--blue-bg);color:var(--blue-fg)}
+  .tag-frontend{background:var(--purple-bg);color:var(--purple-fg)}
+  .tag-db{background:var(--green-bg);color:var(--green-fg)}
+  .tag-config{background:var(--amber-bg);color:var(--amber-fg)}
+  .tag-bug{background:var(--red-bg);color:var(--red-fg)}
+  .prio{font-size:11px;font-weight:600;white-space:nowrap}
+  .prio-high{color:var(--red-fg)}.prio-medium{color:var(--amber-fg)}.prio-low{color:var(--green-fg)}
+  .task-file{font-size:11px;color:var(--muted);font-family:Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+  .add-btn{width:100%;background:transparent;border:1px dashed var(--border);border-radius:var(--radius);padding:8px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;margin-top:4px}
+  .add-btn:hover{background:var(--surface);color:var(--text);border-color:#aaa;border-style:solid}
+  .empty{text-align:center;padding:20px 8px;color:var(--muted);font-size:12px}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:22px 24px;width:400px;max-width:96vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+  .modal h3{font-size:15px;font-weight:700;margin-bottom:16px}
+  .modal label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;margin-top:12px;text-transform:uppercase;letter-spacing:.4px}
+  .modal input,.modal select,.modal textarea{width:100%;font-size:13px;border:1px solid var(--border);border-radius:var(--radius);padding:0 10px;height:34px;background:var(--surface2);color:var(--text);outline:none}
+  .modal input:focus,.modal select:focus{border-color:var(--red)}
+  .modal textarea{height:60px;padding:8px 10px;resize:vertical}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+  .infobar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .infobar span{flex:1}
+  footer{text-align:center;font-size:11px;color:var(--muted);padding:20px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">XShed</div>
+  <div>
+    <h1>Maintenance Feature — Task Board</h1>
+    <p>Real-time shared · changes sync to all users instantly</p>
+  </div>
+  <div class="live-badge">
+    <div class="dot" id="dot"></div>
+    <span id="lbl">Connecting…</span>
+  </div>
+</header>
+
+<main>
+  <div class="infobar">
+    <span>🔴 <strong>Live shared board</strong> — every add, edit, or delete is instantly visible to all users.</span>
+    <button class="btn btn-danger" onclick="resetTasks()">↺ Reset defaults</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="topbar">
+    <input type="text" id="search" placeholder="Search tasks or filenames…" oninput="render()">
+    <select id="ftag" onchange="render()">
+      <option value="">All tags</option>
+      <option>backend</option><option>frontend</option><option>db</option><option>config</option><option>bug</option>
+    </select>
+    <select id="fprio" onchange="render()">
+      <option value="">All priorities</option>
+      <option>high</option><option>medium</option><option>low</option>
+    </select>
+    <button class="btn btn-red" onclick="openModal()">+ Add task</button>
+  </div>
+
+  <div class="cols" id="board"></div>
+</main>
+
+<footer>XShed Maintenance Feature · Real-time Task Board</footer>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="mtitle">New task</h3>
+    <label>Title</label>
+    <input type="text" id="f-title" placeholder="e.g. Implement MaintenanceInfoDao">
+    <label>File / reference</label>
+    <input type="text" id="f-file" placeholder="e.g. MaintenanceInfoDao.java">
+    <label>Notes</label>
+    <textarea id="f-notes" placeholder="Optional notes…"></textarea>
+    <label>Tag</label>
+    <select id="f-tag"><option>backend</option><option>frontend</option><option>db</option><option>config</option><option>bug</option></select>
+    <label>Priority</label>
+    <select id="f-prio"><option>high</option><option>medium</option><option>low</option></select>
+    <label>Status</label>
+    <select id="f-status"><option>todo</option><option>in-progress</option><option>done</option></select>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="delbtn" style="display:none;margin-right:auto" onclick="deleteTask()">Delete</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-red" onclick="saveTask()">Save task</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, onValue, set, remove, update } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+/* ── PASTE YOUR FIREBASE CONFIG BELOW ── */
+const cfg = {
+  apiKey:            "AIzaSyCwnvPuzVetSG-1-cQ2h6ygMKBGjqs9q5Q",
+  authDomain:        "xshed-adf2e.firebaseapp.com",
+  databaseURL:       "https://xshed-adf2e-default-rtdb.firebaseio.com",
+  projectId:         "xshed-adf2e",
+  storageBucket:     "xshed-adf2e.firebasestorage.app",
+  messagingSenderId: "117290390021",
+  appId:             "1:117290390021:web:8293d651ecac24aa58426c"
+};
+/* ────────────────────────────────────── */
+
+const DEFAULTS = [
+  {id:'t1',  title:'Create Maintenance.java entity + hbm.xml',                         file:'Maintenance.java',                                             tag:'backend',  prio:'high',   status:'done',        notes:''},
+  {id:'t2',  title:'Create MaintenanceServices + MaintenanceType lookup entities',      file:'MaintenanceServices.java / MaintenanceType.java',               tag:'backend',  prio:'high',   status:'done',        notes:''},
+  {id:'t3',  title:'Create MaintenanceServiceTypeFee fee-matrix entity',                file:'MaintenanceServiceTypeFee.java',                                tag:'backend',  prio:'high',   status:'done',        notes:''},
+  {id:'t4',  title:'Create MaintenancePaymentTransaction junction entity',              file:'MaintenancePaymentTransaction.java',                            tag:'backend',  prio:'high',   status:'done',        notes:''},
+  {id:'t5',  title:'Create MaintenanceInfoDao interface + Hibernate impl',              file:'MaintenanceInfoDao.java / HibernateMaintenanceInfoDaoImpl.java', tag:'backend',  prio:'high',   status:'done',        notes:''},
+  {id:'t6',  title:'Create DTOs for all 5 maintenance entities',                        file:'MaintenanceBean.java (x5 beans)',                               tag:'backend',  prio:'medium', status:'done',        notes:''},
+  {id:'t7',  title:'Add 5 HBM mappings to applicationContext.xml',                     file:'applicationContext.xml',                                        tag:'config',   prio:'high',   status:'done',        notes:''},
+  {id:'t8',  title:'Wire maintenanceInfoDao Spring bean + inject into action beans',    file:'applicationContext.xml',                                        tag:'config',   prio:'high',   status:'in-progress', notes:''},
+  {id:'t9',  title:'Add struts-config action mappings',                                 file:'struts-config.xml',                                             tag:'config',   prio:'medium', status:'in-progress', notes:''},
+  {id:'t10', title:'Implement GetMaintenanceAction AJAX',                               file:'GetMaintenanceAction.java',                                     tag:'backend',  prio:'high',   status:'in-progress', notes:''},
+  {id:'t11', title:'Implement ManageMaintenanceAction (add / donecleaning / cancel)',   file:'ManageMaintenanceAction.java',                                  tag:'backend',  prio:'high',   status:'in-progress', notes:''},
+  {id:'t12', title:'Add 5 maintenance fields to PaymentTransactionFormBean',            file:'PaymentTransactionFormBean.java',                               tag:'backend',  prio:'medium', status:'todo',        notes:''},
+  {id:'t13', title:'Inject maintenanceInfoDao into HttpCustomerAJAXAction',             file:'HttpCustomerAJAXRemoteRequestProcessorAction.java',              tag:'backend',  prio:'high',   status:'todo',        notes:''},
+  {id:'t14', title:'isMaintenance billing override in admin AJAX action',               file:'HttpAdminAJAXRemoteRequestProcessorAction.java',                tag:'backend',  prio:'medium', status:'todo',        notes:''},
+  {id:'t15', title:'hasunpaidextracleaning flag in delivery AJAX action',               file:'HttpDeliveryCompanyAJAXRemoteRequestProcessorAction.java',       tag:'backend',  prio:'medium', status:'todo',        notes:''},
+  {id:'t16', title:'Add maintenance modals + JS to customer modals.jsp',                file:'jsp/customer/common/modals.jsp',                                tag:'frontend', prio:'medium', status:'todo',        notes:''},
+  {id:'t17', title:'Add maintenance modals + JS to delivery modals.jsp',                file:'jsp/delivery/common/modals.jsp',                                tag:'frontend', prio:'medium', status:'todo',        notes:''},
+  {id:'t18', title:'Add Maintenance + Schedule buttons to show-orders.js',              file:'js/customer/show-orders.js',                                    tag:'frontend', prio:'medium', status:'todo',        notes:''},
+  {id:'t19', title:'isMaintenance check in customer billsPayments_v1.js',               file:'js/customer/billsPayments_v1.js',                               tag:'frontend', prio:'low',    status:'todo',        notes:''},
+  {id:'t20', title:'isMaintenance check in admin billsPayments_v1.js',                  file:'js/admin/billsPayments_v1.js',                                  tag:'frontend', prio:'low',    status:'todo',        notes:''},
+  {id:'t21', title:'Full maintenance history flow in orderDeliveryPickupHistory.js',    file:'js/delivery/orderDeliveryPickupHistory.js',                     tag:'frontend', prio:'high',   status:'todo',        notes:''},
+  {id:'t22', title:'Customer CSS — maintenance section styles',                         file:'css/customer/style.css',                                        tag:'frontend', prio:'low',    status:'todo',        notes:''},
+  {id:'t23', title:'Delivery CSS — maintenance section styles',                         file:'css/style.css',                                                 tag:'frontend', prio:'low',    status:'todo',        notes:''},
+  {id:'t24', title:'Run maintenance_request.sql + verify seed data',                    file:'SQLS/maintenance_request.sql',                                  tag:'db',       prio:'high',   status:'done',        notes:'5 tables + fee matrix seed data'},
+];
+
+const COLS = [{key:'todo',label:'To do'},{key:'in-progress',label:'In progress'},{key:'done',label:'Done'}];
+
+const app = initializeApp(cfg);
+const db  = getDatabase(app);
+const DB  = ref(db, 'xshed-tasks');
+const dot = document.getElementById('dot');
+const lbl = document.getElementById('lbl');
+
+let tasks  = [];
+let editId = null;
+
+/* ── LISTEN — real-time sync ── */
+onValue(DB, snap => {
+  dot.className = 'dot on';
+  lbl.textContent = '🟢 Live';
+  const val = snap.val();
+  if (val) {
+    tasks = Object.values(val);
+  } else {
+    /* First load — seed defaults */
+    const obj = {};
+    DEFAULTS.forEach(t => { obj[t.id] = t; });
+    set(DB, obj);
+    tasks = DEFAULTS.map(t=>({...t}));
+  }
+  render();
+}, () => {
+  dot.className = 'dot';
+  lbl.textContent = '🔴 Offline';
+});
+
+/* ── SAVE ── */
+window.saveTask = () => {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { document.getElementById('f-title').focus(); return; }
+  const data = {
+    title,
+    file:   document.getElementById('f-file').value.trim(),
+    notes:  document.getElementById('f-notes').value.trim(),
+    tag:    document.getElementById('f-tag').value,
+    prio:   document.getElementById('f-prio').value,
+    status: document.getElementById('f-status').value
+  };
+  dot.className = 'dot sync';
+  lbl.textContent = 'Saving…';
+  if (editId) {
+    update(ref(db, 'xshed-tasks/' + editId), data);
+  } else {
+    const nid = 'task_' + Date.now();
+    set(ref(db, 'xshed-tasks/' + nid), {id: nid, ...data});
+  }
+  closeModal();
+};
+
+/* ── DELETE ── */
+window.deleteTask = () => {
+  if (!editId || !confirm('Delete this task?')) return;
+  remove(ref(db, 'xshed-tasks/' + editId));
+  closeModal();
+};
+
+/* ── RESET ── */
+window.resetTasks = () => {
+  if (!confirm('Reset ALL tasks to defaults? This affects everyone.')) return;
+  const obj = {};
+  DEFAULTS.forEach(t => { obj[t.id] = t; });
+  set(DB, obj);
+};
+
+/* ── RENDER ── */
+function filtered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const tag = document.getElementById('ftag').value;
+  const prio = document.getElementById('fprio').value;
+  return tasks.filter(t =>
+    (!q    || t.title.toLowerCase().includes(q) || (t.file||'').toLowerCase().includes(q) || (t.notes||'').toLowerCase().includes(q)) &&
+    (!tag  || t.tag  === tag) &&
+    (!prio || t.prio === prio)
+  );
+}
+
+const PL = {high:'↑ High', medium:'– Med', low:'↓ Low'};
+
+window.render = () => {
+  const f = filtered();
+  document.getElementById('board').innerHTML = COLS.map(col => {
+    const items = f.filter(t => t.status === col.key);
+    return `<div class="col">
+      <div class="col-header"><span class="col-title">${col.label}</span><span class="col-count">${items.length}</span></div>
+      <div class="col-body">
+        ${!items.length ? '<div class="empty">No tasks</div>' : ''}
+        ${items.map(t=>`
+          <div class="task${t.status==='done'?' done':''}" onclick="openEdit('${t.id}')">
+            <div class="task-top">
+              <span class="task-title${t.status==='done'?' x':''}">${t.title}</span>
+              <span class="prio prio-${t.prio}">${PL[t.prio]||t.prio}</span>
+            </div>
+            <div class="task-meta">
+              <span class="tag tag-${t.tag}">${t.tag}</span>
+              ${t.file?`<span class="task-file" title="${t.file}">${t.file}</span>`:''}
+            </div>
+            ${t.notes?`<div style="font-size:11px;color:#888;margin-top:6px;line-height:1.4">${t.notes}</div>`:''}
+          </div>`).join('')}
+        <button class="add-btn" onclick="openModal('${col.key}')">+ Add task</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${tasks.length}</div><div class="l">Total</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='todo').length}</div><div class="l">To do</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='in-progress').length}</div><div class="l">In progress</div></div>
+    <div class="stat"><div class="n">${tasks.filter(t=>t.status==='done').length}</div><div class="l">Done</div></div>`;
+};
+
+/* ── MODAL ── */
+window.openModal = (status='todo') => {
+  editId = null;
+  document.getElementById('mtitle').textContent = 'New task';
+  ['f-title','f-file','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-tag').value    = 'backend';
+  document.getElementById('f-prio').value   = 'medium';
+  document.getElementById('f-status').value = status;
+  document.getElementById('delbtn').style.display = 'none';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(),50);
+};
+
+window.openEdit = id => {
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  editId = id;
+  document.getElementById('mtitle').textContent    = 'Edit task';
+  document.getElementById('f-title').value  = t.title;
+  document.getElementById('f-file').value   = t.file||'';
+  document.getElementById('f-notes').value  = t.notes||'';
+  document.getElementById('f-tag').value    = t.tag;
+  document.getElementById('f-prio').value   = t.prio;
+  document.getElementById('f-status').value = t.status;
+  document.getElementById('delbtn').style.display = '';
+  document.getElementById('overlay').classList.add('open');
+};
+
+window.closeModal = () => document.getElementById('overlay').classList.remove('open');
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
